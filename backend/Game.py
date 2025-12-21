@@ -58,11 +58,16 @@ class Game:
             
             chess_move = chess.Move.from_uci(uci_move)
             if chess_move not in self.__board.legal_moves:
+                print(f"Invalid move: {uci_move} not in legal moves")
                 return
             self.__board.push(chess_move)
             self.__moves.append(uci_move)
+            print(f"Move {uci_move} successfully applied. Move count: {len(self.__board.move_stack)}")
             
-        except Exception:
+        except Exception as e:
+            print(f"Error processing move: {e}")
+            import traceback
+            traceback.print_exc()
             return
         
         if self.__board.is_checkmate():
@@ -87,23 +92,27 @@ class Game:
             )
             return
         
-        # Notify the other player about the move
+        # Notify both players about the move
         move_count = len(self.__board.move_stack)
-        if move_count % 2 == 0:
-            # White just moved, notify black
-            self.__server.send_message(
-                self.__player2,
-                json.dumps({
-                    'type': MOVE,
-                    'pay_load': move
-                })
-            )
-        else:
-            # Black just moved, notify white
-            self.__server.send_message(
-                self.__player1,
-                json.dumps({
-                    'type': MOVE,
-                    'pay_load': move
-                })
-            )
+        move_notification = json.dumps({
+            'type': MOVE,
+            'pay_load': move
+        })
+        
+        try:
+            if move_count % 2 == 1:
+                # White just moved (odd number of moves), notify black
+                print(f"White moved (move_count={move_count}), notifying black (player2 id={self.__player2['id']}) and white (player1 id={self.__player1['id']})")
+                self.__server.send_message(self.__player2, move_notification)
+                # Also send confirmation to white
+                self.__server.send_message(self.__player1, move_notification)
+            else:
+                # Black just moved (even number of moves), notify white
+                print(f"Black moved (move_count={move_count}), notifying white (player1 id={self.__player1['id']}) and black (player2 id={self.__player2['id']})")
+                self.__server.send_message(self.__player1, move_notification)
+                # Also send confirmation to black
+                self.__server.send_message(self.__player2, move_notification)
+        except Exception as e:
+            print(f"Error sending move notification: {e}")
+            import traceback
+            traceback.print_exc()
