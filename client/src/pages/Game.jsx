@@ -46,7 +46,8 @@ export const Game = ()=> {
                                     moveStr += move.promotion
                                 }
                             }
-                            const moveResult = newChessInstance.move(moveStr)
+                            
+                            const moveResult = newChessInstance.move(moveStr)//bug
                             if (moveResult) {
                                 setBoard(newChessInstance.board())
                                 console.log("Move done Success ")
