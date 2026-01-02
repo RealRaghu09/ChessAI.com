@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import './App.css'
-import { BrowserRouter, Route, Routes} from "react-router";
+import { BrowserRouter, Route, Routes} from "react-router-dom";
 import { Game } from './pages/Game';
 import { Landing } from './pages/Landing';
 function App() {
