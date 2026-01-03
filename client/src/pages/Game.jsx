@@ -31,8 +31,11 @@ export const Game = ()=> {
                         // Set player color from payload
                         if (message.pay_load && message.pay_load.color) {
                             setPlayerColor(message.pay_load.color)
-                            return <div>
+                            const color = (message.pay_load.color);
+
+                            return <div style={{"color" : (color === "black")? "black" : "white"}}>
                                 {`${message.pay_load.color} is playing`}
+                                
                             </div>
                         }
                         console.log("Intialize the game ", message.pay_load)
@@ -75,7 +78,7 @@ export const Game = ()=> {
     },[socket])
     if (!socket){
         return <div>
-            Connecting
+            
         </div>
     }
     if (!board) {
