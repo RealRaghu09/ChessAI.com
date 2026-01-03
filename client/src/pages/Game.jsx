@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { useSocket } from "../hooks/useSocket"
 import { ChessBoard } from "./ChessBoard"
 import {Chess} from 'chess.js'
+import Connecting  from "./Connecting"
 export const INIT_GAME = "init_game"
 export const MOVE = "move"
 export const GAME_OVER = "game_over"
@@ -78,7 +79,7 @@ export const Game = ()=> {
     },[socket])
     if (!socket){
         return <div>
-            
+            <Connecting/>
         </div>
     }
     if (!board) {
