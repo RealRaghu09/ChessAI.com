@@ -1,5 +1,5 @@
-import array
-from turtle import position
+
+
 from flask import Flask, render_template, request
 import json
 from ft_model.load_model import load_ft_model
