@@ -30,21 +30,18 @@ export const Game = ()=> {
                         setBoard(newChess.board())
                         setSelectedSquare(null)
                         // Set player color from payload
-                        if (message.pay_load && message.pay_load.color) {
+                        if (message.payload && message.payload.color) {
+                            setPlayerColor(message.payload.color)
+                        } else if (message.pay_load && message.pay_load.color) {
+                            // Fallback for snake_case (backward compatibility)
                             setPlayerColor(message.pay_load.color)
-                            const color = (message.pay_load.color);
-
-                            return <div style={{"color" : (color === "black")? "black" : "white"}}>
-                                {`${message.pay_load.color} is playing`}
-                                
-                            </div>
                         }
-                        console.log("Intialize the game ", message.pay_load)
+                        console.log("Initialize the game ", message.payload || message.pay_load)
                         break
                     case MOVE:
                         setChess(currentChess => {
                             const newChessInstance = new Chess(currentChess.fen())
-                            const move = message.pay_load
+                            const move = message.payload || message.pay_load // Support both payload and pay_load
                             // Convert move object to UCI format if needed
                             let moveStr = move
                             if (typeof move === 'object' && move.from && move.to) {
@@ -53,11 +50,17 @@ export const Game = ()=> {
                                     moveStr += move.promotion
                                 }
                             }
-                            
-                            const moveResult = newChessInstance.move(moveStr)//bug
-                            if (moveResult) {
-                                setBoard(newChessInstance.board())
-                                console.log("Move done Success ")
+
+                            try {
+                                const moveResult = newChessInstance.move(moveStr)
+                                if (moveResult) {
+                                    setBoard(newChessInstance.board())
+                                    console.log("Move done successfully")
+                                } else {
+                                    console.error("Invalid move received:", moveStr)
+                                }
+                            } catch (error) {
+                                console.error("Error applying move:", error, "Move:", moveStr)
                             }
                             return newChessInstance
                         })
@@ -87,115 +90,130 @@ export const Game = ()=> {
     }
     
     const handleSquareClick = (square) => {
-        console.log("Square clicked:", square, "Selected:", selectedSquare, "Player color:", playerColor)
-        
-        // If no square is selected, select this square (if it has a piece)
-        if (!selectedSquare) {
-            const piece = getPieceAtSquare(square)
-            console.log("No selection, piece at square:", piece)
-            if (piece) {
-                // Check if it's the player's piece (or allow if playerColor not set yet)
-                const isPlayerPiece = playerColor === null || 
-                                     (playerColor === 'white' && piece.color === 'w') || 
-                                     (playerColor === 'black' && piece.color === 'b')
-                console.log("Is player piece:", isPlayerPiece)
-                if (isPlayerPiece) {
-                    setSelectedSquare(square)
-                    console.log("Square selected:", square)
-                }
-            }
-            return
-        }
-        
-        // If same square is clicked, deselect
-        if (selectedSquare === square) {
-            setSelectedSquare(null)
-            console.log("Deselected square")
-            return
-        }
-        
-        // Try to make a move
-        const move = {
-            from: selectedSquare,
-            to: square
-        }
-        
-        console.log("Attempting move:", move)
-        
-        // Check if move is valid locally first
-        const tempChess = new Chess(chess.fen())
-        const moveStr = `${move.from}${move.to}`
-        console.log("Move string:", moveStr)
-        
         try {
-            const moveResult = tempChess.move(moveStr)
-            console.log("Move result:", moveResult)
-            
-            if (moveResult) {
-                // Send move to server if socket is available
-                if (socket && socket.readyState === WebSocket.OPEN) {
-                    socket.send(JSON.stringify({
-                        type: MOVE,
-                        move: move
-                    }))
-                    console.log("Move sent to server")
-                } else {
-                    console.log("Socket not available, making local move only")
-                }
-                
-                // Optimistic update
-                setChess(tempChess)
-                setBoard(tempChess.board())
-                setSelectedSquare(null)
-                console.log("Move applied successfully")
-            } else {
-                console.log("Invalid move, trying to select new square")
-                // Invalid move, try selecting the new square if it has a piece
+            console.log("Square clicked:", square, "Selected:", selectedSquare, "Player color:", playerColor)
+
+            // If no square is selected, select this square (if it has a piece)
+            if (!selectedSquare) {
                 const piece = getPieceAtSquare(square)
+                console.log("No selection, piece at square:", piece)
                 if (piece) {
-                    const isPlayerPiece = playerColor === null || 
-                                         (playerColor === 'white' && piece.color === 'w') || 
+                    // Check if it's the player's piece (or allow if playerColor not set yet)
+                    const isPlayerPiece = playerColor === null ||
+                                         (playerColor === 'white' && piece.color === 'w') ||
                                          (playerColor === 'black' && piece.color === 'b')
+                    console.log("Is player piece:", isPlayerPiece)
                     if (isPlayerPiece) {
                         setSelectedSquare(square)
+                        console.log("Square selected:", square)
+                    }
+                }
+                return
+            }
+
+            // If same square is clicked, deselect
+            if (selectedSquare === square) {
+                setSelectedSquare(null)
+                console.log("Deselected square")
+                return
+            }
+
+            // Try to make a move
+            const move = {
+                from: selectedSquare,
+                to: square
+            }
+
+            console.log("Attempting move:", move)
+
+            // Check if move is valid locally first
+            try {
+                const tempChess = new Chess(chess.fen())
+                const moveStr = `${move.from}${move.to}`
+                console.log("Move string:", moveStr)
+
+                const moveResult = tempChess.move(moveStr)
+                console.log("Move result:", moveResult)
+
+                if (moveResult) {
+                    // Send move to server if socket is available
+                    if (socket && socket.readyState === WebSocket.OPEN) {
+                        socket.send(JSON.stringify({
+                            type: MOVE,
+                            move: move
+                        }))
+                        console.log("Move sent to server")
+                    } else {
+                        console.log("Socket not available, making local move only")
+                    }
+
+                    // Optimistic update
+                    setChess(tempChess)
+                    setBoard(tempChess.board())
+                    setSelectedSquare(null)
+                    console.log("Move applied successfully")
+                } else {
+                    console.log("Invalid move, trying to select new square")
+                    // Invalid move, try selecting the new square if it has a piece
+                    const piece = getPieceAtSquare(square)
+                    if (piece) {
+                        const isPlayerPiece = playerColor === null ||
+                                             (playerColor === 'white' && piece.color === 'w') ||
+                                             (playerColor === 'black' && piece.color === 'b')
+                        if (isPlayerPiece) {
+                            setSelectedSquare(square)
+                        } else {
+                            setSelectedSquare(null)
+                        }
                     } else {
                         setSelectedSquare(null)
                     }
-                } else {
+                }
+            } catch (error) {
+                console.error("Error making move:", error)
+                // Try selecting the new square if it has a piece
+                try {
+                    const piece = getPieceAtSquare(square)
+                    if (piece) {
+                        const isPlayerPiece = playerColor === null ||
+                                             (playerColor === 'white' && piece.color === 'w') ||
+                                             (playerColor === 'black' && piece.color === 'b')
+                        if (isPlayerPiece) {
+                            setSelectedSquare(square)
+                        } else {
+                            setSelectedSquare(null)
+                        }
+                    } else {
+                        setSelectedSquare(null)
+                    }
+                } catch (fallbackError) {
+                    console.error("Error in fallback selection:", fallbackError)
                     setSelectedSquare(null)
                 }
             }
         } catch (error) {
-            console.error("Error making move:", error)
-            // Try selecting the new square if it has a piece
-            const piece = getPieceAtSquare(square)
-            if (piece) {
-                const isPlayerPiece = playerColor === null || 
-                                     (playerColor === 'white' && piece.color === 'w') || 
-                                     (playerColor === 'black' && piece.color === 'b')
-                if (isPlayerPiece) {
-                    setSelectedSquare(square)
-                } else {
-                    setSelectedSquare(null)
-                }
-            } else {
-                setSelectedSquare(null)
-            }
+            console.error("Critical error in handleSquareClick:", error)
+            setSelectedSquare(null)
         }
     }
     
     const getPieceAtSquare = (square) => {
-        if (!square || square.length !== 2) return null
-        const file = square[0].charCodeAt(0) - 97 // a=0, h=7
-        const rank = 8 - parseInt(square[1]) // 1=7, 8=0
-        console.log(`Getting piece at ${square}: file=${file}, rank=${rank}`)
-        if (rank >= 0 && rank < 8 && file >= 0 && file < 8 && board && board[rank]) {
-            const piece = board[rank][file] || null
-            console.log(`Piece found:`, piece)
-            return piece
+        try {
+            if (!square || square.length !== 2) return null
+            const file = square[0].charCodeAt(0) - 97 // a=0, h=7
+            const rank = 8 - parseInt(square[1]) // 1=7, 8=0
+            console.log(`Getting piece at ${square}: file=${file}, rank=${rank}`)
+            if (rank >= 0 && rank < 8 && file >= 0 && file < 8 && board && board[rank]) {
+                const piece = board[rank][file] || null
+                console.log(`Piece found:`, piece)
+                return piece
+            }
+            console.log(`No piece found at ${square}`)
+            return null
+        } catch (error) {
+            console.error(`Error getting piece at square ${square}:`, error)
+            return null
         }
-        console.log(`No piece found at ${square}`)
-        return null
     }
     
     const getPossibleMoves = () => {
