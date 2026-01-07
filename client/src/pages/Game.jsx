@@ -5,6 +5,7 @@ import {Chess} from 'chess.js'
 import Connecting  from "./Connecting"
 export const INIT_GAME = "init_game"
 export const MOVE = "move"
+// export const API_END_POINT = 'APIENDPOINT'
 export const GAME_OVER = "game_over"
 export const Game = ()=> {
     const socket = useSocket()
@@ -15,7 +16,27 @@ export const Game = ()=> {
     })
     const [selectedSquare, setSelectedSquare] = useState(null)
     const [playerColor, setPlayerColor] = useState(null)
-    
+    // const movesArray = [];
+    // //Button for AI 
+    // const aiResponse = async ()=>{
+    //     const data = {
+    //         "moves": movesArray
+    //     }
+    //     try{
+    //         const res = await fetch(API_END_POINT,{
+    //             method: 'POST',
+    //             headers: {
+    //             'Content-Type': 'application/json'
+    //             },
+    //             body: JSON.stringify(data),
+    //         });
+    //         const responseData = await res.json();
+    //         const responseContent = responseData['response']
+    //         console.log(responseContent)
+    //     }catch(error){
+    //         console.log("Error" , error)
+    //     }
+    // }
     useEffect(()=>{
         if(!socket) return ;
         
@@ -49,6 +70,7 @@ export const Game = ()=> {
                                 if (move.promotion) {
                                     moveStr += move.promotion
                                 }
+                                // movesArray.append(moveStr)
                             }
 
                             try {
@@ -244,6 +266,11 @@ export const Game = ()=> {
                     selectedSquare={selectedSquare}
                     possibleMoves={getPossibleMoves()}
                 />
+                {/* <div>
+                    <button onClick={aiResponse}>
+                        AI
+                    </button>
+                </div> */}
                 <button 
                     onClick={()=>{
                         if (socket && socket.readyState === WebSocket.OPEN) {
