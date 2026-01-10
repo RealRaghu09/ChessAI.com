@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useSocket } from "../hooks/useSocket"
 import { ChessBoard } from "./ChessBoard"
+import { MoveHistory } from "./MoveHistory"
 import {Chess} from 'chess.js'
 import Connecting  from "./Connecting"
 export const INIT_GAME = "init_game"
@@ -16,8 +17,9 @@ export const Game = ()=> {
     })
     const [selectedSquare, setSelectedSquare] = useState(null)
     const [playerColor, setPlayerColor] = useState(null)
+    const [moveHistory, setMoveHistory] = useState([])
     // const movesArray = [];
-    // //Button for AI 
+    // //Button for AI
     // const aiResponse = async ()=>{
     //     const data = {
     //         "moves": movesArray
@@ -50,6 +52,7 @@ export const Game = ()=> {
                         setChess(newChess)
                         setBoard(newChess.board())
                         setSelectedSquare(null)
+                        setMoveHistory([]) // Reset move history for new game
                         // Set player color from payload
                         if (message.payload && message.payload.color) {
                             setPlayerColor(message.payload.color)
@@ -78,6 +81,12 @@ export const Game = ()=> {
                                 if (moveResult) {
                                     setBoard(newChessInstance.board())
                                     console.log("Move done successfully")
+                                    // Add move to history
+                                    setMoveHistory(prevHistory => [...prevHistory, {
+                                        moveNumber: Math.floor(prevHistory.length / 2) + 1,
+                                        move: moveResult.san,
+                                        color: moveResult.color === 'w' ? 'white' : 'black'
+                                    }])
                                 } else {
                                     console.error("Invalid move received:", moveStr)
                                 }
@@ -173,6 +182,12 @@ export const Game = ()=> {
                     setChess(tempChess)
                     setBoard(tempChess.board())
                     setSelectedSquare(null)
+                    // Add move to history
+                    setMoveHistory(prevHistory => [...prevHistory, {
+                        moveNumber: Math.floor(prevHistory.length / 2) + 1,
+                        move: moveResult.san,
+                        color: moveResult.color === 'w' ? 'white' : 'black'
+                    }])
                     console.log("Move applied successfully")
                 } else {
                     console.log("Invalid move, trying to select new square")
@@ -260,12 +275,15 @@ export const Game = ()=> {
                         </div>
                     )}
                 </div>
-                <ChessBoard 
-                    board={board}
-                    onSquareClick={handleSquareClick}
-                    selectedSquare={selectedSquare}
-                    possibleMoves={getPossibleMoves()}
-                />
+                <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+                    <ChessBoard
+                        board={board}
+                        onSquareClick={handleSquareClick}
+                        selectedSquare={selectedSquare}
+                        possibleMoves={getPossibleMoves()}
+                    />
+                    <MoveHistory moveHistory={moveHistory} />
+                </div>
                 {/* <div>
                     <button onClick={aiResponse}>
                         AI
