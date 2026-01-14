@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { useSocket } from "../hooks/useSocket"
 import { ChessBoard } from "./ChessBoard"
 import { MoveHistory } from "./MoveHistory"
+import { toast } from "react-toastify"
 import {Chess} from 'chess.js'
 import Connecting  from "./Connecting"
 export const INIT_GAME = "init_game"
@@ -89,9 +90,11 @@ export const Game = ()=> {
                                     }])
                                 } else {
                                     console.error("Invalid move received:", moveStr)
+                                    toast.error(`Invalid move received: in else block ${moveStr}`)
                                 }
                             } catch (error) {
                                 console.error("Error applying move:", error, "Move:", moveStr)
+                                toast.error(`Invalid move received: in catch block${moveStr}`)
                             }
                             return newChessInstance
                         })
@@ -163,34 +166,68 @@ export const Game = ()=> {
                 const moveStr = `${move.from}${move.to}`
                 console.log("Move string:", moveStr)
 
-                const moveResult = tempChess.move(moveStr)
-                console.log("Move result:", moveResult)
-
-                if (moveResult) {
-                    // Send move to server if socket is available
-                    if (socket && socket.readyState === WebSocket.OPEN) {
-                        socket.send(JSON.stringify({
-                            type: MOVE,
-                            move: move
-                        }))
-                        console.log("Move sent to server")
-                    } else {
-                        console.log("Socket not available, making local move only")
+                // If playerColor is null (testing mode), temporarily set turn to the piece's color
+                const originalTurn = tempChess.turn()
+                if (playerColor === null) {
+                    const piece = getPieceAtSquare(selectedSquare)
+                    if (piece) {
+                        // Set turn to match the piece being moved
+                        const pieceColor = piece.color === 'w' ? 'white' : 'black'
+                        if (pieceColor === 'black' && tempChess.turn() === 'w') {
+                            // Force black's turn for testing
+                            tempChess.load(tempChess.fen().replace(' w ', ' b '))
+                        }
                     }
+                }
 
-                    // Optimistic update
-                    setChess(tempChess)
-                    setBoard(tempChess.board())
-                    setSelectedSquare(null)
-                    // Add move to history
-                    setMoveHistory(prevHistory => [...prevHistory, {
-                        moveNumber: Math.floor(prevHistory.length / 2) + 1,
-                        move: moveResult.san,
-                        color: moveResult.color === 'w' ? 'white' : 'black'
-                    }])
-                    console.log("Move applied successfully")
-                } else {
-                    console.log("Invalid move, trying to select new square")
+                try {
+                    const moveResult = tempChess.move(moveStr)
+                    console.log("Move result:", moveResult)
+
+                    if (moveResult) {
+                        // Send move to server if socket is available
+                        if (socket && socket.readyState === WebSocket.OPEN) {
+                            socket.send(JSON.stringify({
+                                type: MOVE,
+                                move: move
+                            }))
+                            console.log("Move sent to server")
+                        } else {
+                            console.log("Socket not available, making local move only")
+                        }
+
+                        // Optimistic update
+                        setChess(tempChess)
+                        setBoard(tempChess.board())
+                        setSelectedSquare(null)
+                        // Add move to history
+                        setMoveHistory(prevHistory => [...prevHistory, {
+                            moveNumber: Math.floor(prevHistory.length / 2) + 1,
+                            move: moveResult.san,
+                            color: moveResult.color === 'w' ? 'white' : 'black'
+                        }])
+                        console.log("Move applied successfully")
+                    } else {
+                        console.log("Invalid move, trying to select new square")
+                        toast.error(`Invalid move: ${move.from} to ${move.to}`)
+                        // Invalid move, try selecting the new square if it has a piece
+                        const piece = getPieceAtSquare(square)
+                        if (piece) {
+                            const isPlayerPiece = playerColor === null ||
+                                                 (playerColor === 'white' && piece.color === 'w') ||
+                                                 (playerColor === 'black' && piece.color === 'b')
+                            if (isPlayerPiece) {
+                                setSelectedSquare(square)
+                            } else {
+                                setSelectedSquare(null)
+                            }
+                        } else {
+                            setSelectedSquare(null)
+                        }
+                    }
+                } catch (moveError) {
+                    console.log("Move validation error:", moveError)
+                    toast.error(`Invalid move:${moveError} ${move.from} to ${move.to}`)
                     // Invalid move, try selecting the new square if it has a piece
                     const piece = getPieceAtSquare(square)
                     if (piece) {

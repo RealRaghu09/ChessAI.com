@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import './App.css'
 import { BrowserRouter, Route, Routes} from "react-router-dom";
+import { ToastContainer } from 'react-toastify';
 import { Game } from './pages/Game';
 import { Landing } from './pages/Landing';
 function App() {
@@ -12,6 +13,18 @@ function App() {
       <Route path="/" element= {<Landing/>}/>
       <Route path="/game" element = {<Game/>}/>
     </Routes>
+    <ToastContainer
+      position="top-right"
+      autoClose={3000}
+      hideProgressBar={false}
+      newestOnTop={false}
+      closeOnClick
+      rtl={false}
+      pauseOnFocusLoss
+      draggable
+      pauseOnHover
+      theme="dark"
+    />
     </BrowserRouter>
   )
 }
