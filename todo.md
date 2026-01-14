@@ -1,7 +1,6 @@
-- Implement the invalid move pop up 
-- start the game with the username and the color 
 - check for glitches and rectify them
 - chat feature ?? if so possible 
+- start the game with the username and the color 
 - Make the UI better 
 
 Logs 
