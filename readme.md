@@ -5,8 +5,10 @@
 # ♟️ ChessAI.com
 
 ChessAI.com is a real-time online chess platform that connects two players using **WebSockets**, validates gameplay using the **python-chess** library, and enhances the playing experience with an **AI-powered move suggestion system**. The platform is designed with a clean, modern UI and focuses on correctness, performance, and usability.
-[![Watch the demo]](liveVideo.mp4)
-https://github.com/RealRaghu09/ChessAI.com/blob/main/liveVideo.mp4
+## Demo Video
+
+[![Watch the demo]](https://youtu.be/usFw20-xZH4)
+
 ---
 
 ##  Features
