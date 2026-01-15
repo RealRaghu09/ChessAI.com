@@ -1,7 +1,37 @@
-import React from 'react'
-
+import React,{useState} from 'react'
+import "./MoveHistory.css"
 export const MoveHistory = ({ moveHistory }) => {
+    const [response, setResponse] = useState("");
+    const [loading, setLoading] = useState(false);
+    const getfromAI =async ()=>{
+        if (!prompt.trim()) return;
+
+    setLoading(true);
+
+    try {
+      const res = await fetch("http://localhost:8080/completion", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          move: moveHistory , 
+          color : color
+        }),
+      });
+
+      const data = await res.json();
+      setResponse(data.content || JSON.stringify(data));
+    }
+    catch (err) {
+        setResponse("Error calling API");
+      } finally {
+        setLoading(false);
+      }
+    }
+    
     return (
+        <div>
         <div style={{
             backgroundColor: 'rgba(0, 0, 0, 0.7)',
             borderRadius: '8px',
@@ -94,8 +124,18 @@ export const MoveHistory = ({ moveHistory }) => {
                             </React.Fragment>
                         )
                     })}
+            
                 </div>
             )}
+        </div >
+            <div className="aiResponse">
+            <button onClick={getfromAI} disabled={loading}>
+                {loading ? "Generating..." : "Get Moves from AI"}
+            </button>
+            <div className="divresponse">
+                <pre className="response">{response}</pre>
+            </div>
         </div>
+    </div>
     )
 }
