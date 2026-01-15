@@ -7,9 +7,9 @@ export const MoveHistory = ({ moveHistory }) => {
         if (!prompt.trim()) return;
 
     setLoading(true);
-
+    const API = "http://localhost:8080/make_move"
     try {
-      const res = await fetch("http://localhost:8080/completion", {
+      const res = await fetch(API, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
