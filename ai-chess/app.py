@@ -2,7 +2,6 @@
 from openai import OpenAI
 from flask import Flask, render_template, request
 import json
-import subprocess
 from ft_model.load_model import load_ft_model
 app = Flask(__name__)
 PORT = 11432
