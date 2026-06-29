@@ -1,1 +1,3 @@
 /ai-chess/llama-3.2-3b-instruct.Q8_0.gguf
+*.env
+*.json
