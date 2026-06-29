@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: chessai
+      POSTGRES_PASSWORD: chessai
+      POSTGRES_DB: chessai
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://chessai:chessai@db:5432/chessai
+      JWT_SECRET: change-me-in-production
+      DEBUG: "false"
+    depends_on:
+      - db
+
+  client:
+    build: ./client
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
