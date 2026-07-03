@@ -48,7 +48,7 @@ export function AuthProvider({ children }) {
     try {
       await api.logout();
     } catch {
-      // ignore
+      console.error('Failed to logout' , error);
     }
     setToken(null);
     setStoredUser(null);

@@ -1,6 +1,5 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './routes/ProtectedRoute';
 import Game from './pages/Game';
@@ -10,7 +9,6 @@ import Lobby from './pages/Lobby';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
 import Register from './pages/Register';
-import './App.css';
 
 function App() {
   return (
@@ -25,7 +23,12 @@ function App() {
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
         </Routes>
-        <ToastContainer position="top-right" autoClose={3000} theme="dark" />
+        <ToastContainer
+          position="top-right"
+          autoClose={3000}
+          theme="dark"
+          toastClassName="!bg-black !border !border-white !text-white"
+        />
       </BrowserRouter>
     </AuthProvider>
   );

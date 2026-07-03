@@ -1,5 +1,4 @@
 import React,{useState} from 'react'
-import "./MoveHistory.css"
 export const MoveHistory = ({ moveHistory }) => {
     const [response, setResponse] = useState("");
     const [loading, setLoading] = useState(false);

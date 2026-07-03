@@ -3,6 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 
+const inputClass = 'w-full border border-white bg-black text-white px-4 py-3 text-sm focus:outline-none focus:bg-neutral-900 placeholder:text-neutral-500';
+const btnClass = 'w-full border-2 border-white py-3 text-sm font-semibold uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-40';
+
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -25,13 +28,13 @@ export default function Login() {
   };
 
   return (
-    <div className="auth-page">
-      <form className="auth-card" onSubmit={handleSubmit}>
-        <h1>Login</h1>
-        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        <button type="submit" disabled={submitting}>{submitting ? 'Signing in...' : 'Sign In'}</button>
-        <p>No account? <Link to="/register">Register</Link></p>
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <form className="w-full max-w-md border border-white p-8 flex flex-col gap-4" onSubmit={handleSubmit}>
+        <h1 className="text-2xl font-bold uppercase tracking-widest text-center mb-2">Login</h1>
+        <input type="email" className={inputClass} placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <input type="password" className={inputClass} placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <button type="submit" className={btnClass} disabled={submitting}>{submitting ? 'Signing in...' : 'Sign In'}</button>
+        <p className="text-center text-sm text-neutral-400">No account? <Link to="/register" className="text-white">Register</Link></p>
       </form>
     </div>
   );

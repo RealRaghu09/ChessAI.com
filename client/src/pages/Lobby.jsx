@@ -5,11 +5,13 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
 import { WS_EVENTS, sendEvent } from '../services/websocket';
 
+const btnClass = 'border border-white px-4 py-2 text-sm uppercase tracking-wider hover:bg-white hover:text-black transition-colors disabled:opacity-40';
+const inputClass = 'w-full border border-white bg-black text-white px-4 py-3 text-sm focus:outline-none focus:bg-neutral-900 placeholder:text-neutral-500';
+
 export default function Lobby() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { socket, connected, addListener } = useSocket();
-  const [roomCode, setRoomCode] = useState('');
   const [createdCode, setCreatedCode] = useState('');
   const [joinCode, setJoinCode] = useState('');
 
@@ -37,48 +39,49 @@ export default function Lobby() {
   };
 
   return (
-    <div className="lobby-page">
-      <header className="lobby-header">
+    <div className="min-h-screen p-4 md:p-8">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b border-white pb-4">
         <div>
-          <h1>ChessAI Lobby</h1>
-          <p>Welcome, {user?.username} · ELO {user?.elo}</p>
+          <h1 className="text-2xl font-bold uppercase tracking-widest">Lobby</h1>
+          <p className="text-sm text-neutral-400 mt-1">Welcome, {user?.username} · ELO {user?.elo}</p>
         </div>
-        <nav>
-          <Link to="/profile">Profile</Link>
-          <Link to="/leaderboard">Leaderboard</Link>
-          <button type="button" onClick={logout}>Logout</button>
+        <nav className="flex gap-3 items-center text-sm uppercase tracking-wider">
+          <Link to="/profile" className="no-underline hover:opacity-70">Profile</Link>
+          <Link to="/leaderboard" className="no-underline hover:opacity-70">Leaderboard</Link>
+          <button type="button" onClick={logout} className={btnClass}>Logout</button>
         </nav>
       </header>
 
-      <div className="lobby-grid">
-        <section className="lobby-card">
-          <h2>Create Room</h2>
-          <p>Start a private game and share the room code.</p>
-          <button type="button" onClick={createRoom} disabled={!connected}>Create Room</button>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+        <section className="border border-white p-6 flex flex-col gap-4">
+          <h2 className="text-lg font-semibold uppercase tracking-widest">Create Room</h2>
+          <p className="text-sm text-neutral-400">Start a private game and share the room code.</p>
+          <button type="button" onClick={createRoom} disabled={!connected} className={btnClass}>Create Room</button>
           {createdCode && (
-            <div className="room-code-display">
-              <p>Your room code:</p>
-              <strong>{createdCode}</strong>
-              <p className="hint">Waiting for opponent to join...</p>
+            <div className="border border-white p-4 text-center">
+              <p className="text-xs uppercase tracking-widest text-neutral-400 mb-2">Your room code</p>
+              <strong className="text-3xl tracking-[0.3em]">{createdCode}</strong>
+              <p className="text-xs text-neutral-500 mt-2">Waiting for opponent...</p>
             </div>
           )}
         </section>
 
-        <section className="lobby-card">
-          <h2>Join Room</h2>
-          <form onSubmit={joinRoom}>
+        <section className="border border-white p-6 flex flex-col gap-4">
+          <h2 className="text-lg font-semibold uppercase tracking-widest">Join Room</h2>
+          <form onSubmit={joinRoom} className="flex flex-col gap-4">
             <input
+              className={inputClass}
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
               placeholder="Enter room code"
               maxLength={6}
             />
-            <button type="submit" disabled={!connected}>Join</button>
+            <button type="submit" disabled={!connected} className={btnClass}>Join</button>
           </form>
         </section>
       </div>
 
-      {!connected && <p className="connection-hint">Connecting to server...</p>}
+      {!connected && <p className="text-center text-neutral-400 mt-8 text-sm uppercase tracking-widest">Connecting to server...</p>}
     </div>
   );
 }

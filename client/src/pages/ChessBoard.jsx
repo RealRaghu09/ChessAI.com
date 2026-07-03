@@ -1,5 +1,4 @@
 import { useState } from "react"
-import "./ChessBoard.css"
 
 // Unicode chess piece symbols
 const pieceSymbols = {

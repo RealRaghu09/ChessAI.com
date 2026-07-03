@@ -7,6 +7,7 @@ import { ChessBoard } from '../components/ChessBoard';
 import { GameOverModal } from '../components/GameOverModal';
 import { GameTimer } from '../components/GameTimer';
 import { MoveHistory } from '../components/MoveHistory';
+import { PromotionPicker } from '../components/PromotionPicker';
 import { ReactionBar } from '../components/ReactionBar';
 import { RoomStatus } from '../components/RoomStatus';
 import { useAuth } from '../context/AuthContext';
@@ -56,6 +57,7 @@ export default function Game() {
   const [drawOffered, setDrawOffered] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [reactions, setReactions] = useState([]);
+  const [pendingPromotion, setPendingPromotion] = useState(null);
 
   const applyFen = useCallback((fen, pgn) => {
     const instance = new Chess(fen);
@@ -98,10 +100,13 @@ export default function Game() {
           applyFen(p.fen, p.pgn);
           setClocks(p.clocks || clocks);
           setSelectedSquare(null);
+          setPendingPromotion(null);
           break;
         case WS_EVENTS.GAME_MOVE_REJECTED:
           toast.error(`Move rejected: ${p.reason}`);
           if (p.fen) applyFen(p.fen);
+          setSelectedSquare(null);
+          setPendingPromotion(null);
           break;
         case WS_EVENTS.GAME_DRAW_OFFER:
           setDrawOffered(true);
@@ -136,13 +141,35 @@ export default function Game() {
   };
 
   const getPossibleMoves = () => {
-    if (!selectedSquare || !playerColor) return [];
+    if (!selectedSquare || !playerColor || turn !== playerColor) return [];
     const temp = new Chess(chess.fen());
+    if (temp.turn() !== (playerColor === 'white' ? 'w' : 'b')) return [];
     return temp.moves({ square: selectedSquare, verbose: true }).map((m) => m.to);
   };
 
+  const submitMove = (from, to, promotion) => {
+    const temp = new Chess(chess.fen());
+    const moveStr = promotion ? `${from}${to}${promotion}` : `${from}${to}`;
+    try {
+      const result = temp.move(moveStr);
+      if (!result) {
+        toast.error('Invalid move');
+        setSelectedSquare(null);
+        setPendingPromotion(null);
+        return;
+      }
+      sendEvent(socket, WS_EVENTS.GAME_MOVE, { roomId, move: { from, to, ...(promotion && { promotion }) } });
+      setSelectedSquare(null);
+      setPendingPromotion(null);
+    } catch {
+      toast.error('Invalid move');
+      setSelectedSquare(null);
+      setPendingPromotion(null);
+    }
+  };
+
   const handleSquareClick = (square) => {
-    if (!playerColor || gameOver || status !== 'in_progress') return;
+    if (!playerColor || gameOver || status !== 'in_progress' || turn !== playerColor) return;
 
     if (!selectedSquare) {
       const piece = getPieceAtSquare(square);
@@ -158,19 +185,11 @@ export default function Game() {
       return;
     }
 
-    const move = { from: selectedSquare, to: square };
     const temp = new Chess(chess.fen());
-    const moveStr = `${move.from}${move.to}`;
-    try {
-      const result = temp.move(moveStr);
-      if (!result) {
-        toast.error('Invalid move');
-        setSelectedSquare(null);
-        return;
-      }
-      sendEvent(socket, WS_EVENTS.GAME_MOVE, { roomId, move });
-      setSelectedSquare(null);
-    } catch {
+    const verboseMoves = temp.moves({ square: selectedSquare, verbose: true });
+    const targetMove = verboseMoves.find((m) => m.to === square);
+
+    if (!targetMove) {
       const piece = getPieceAtSquare(square);
       if (piece) {
         const isMine = (playerColor === 'white' && piece.color === 'w')
@@ -179,7 +198,20 @@ export default function Game() {
       } else {
         setSelectedSquare(null);
       }
+      return;
     }
+
+    if (targetMove.flags.includes('p')) {
+      setPendingPromotion({ from: selectedSquare, to: square });
+      return;
+    }
+
+    submitMove(selectedSquare, square);
+  };
+
+  const handlePromotion = (piece) => {
+    if (!pendingPromotion) return;
+    submitMove(pendingPromotion.from, pendingPromotion.to, piece);
   };
 
   const resign = () => sendEvent(socket, WS_EVENTS.GAME_RESIGN, { roomId });
@@ -192,30 +224,36 @@ export default function Game() {
 
   const opponent = user?.id === host?.id ? guest : host;
 
+  const btnClass = 'border border-white px-4 py-2 text-sm uppercase tracking-wider hover:bg-white hover:text-black transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
+
   return (
-    <div className="game-page">
-      <header className="game-header">
-        <button type="button" onClick={() => navigate('/lobby')}>← Lobby</button>
-        <span>vs {opponent?.username || '...'}</span>
+    <div className="min-h-screen p-4 md:p-8">
+      <header className="flex justify-between items-center mb-6 border-b border-white pb-4">
+        <button type="button" onClick={() => navigate('/lobby')} className={btnClass}>
+          ← Lobby
+        </button>
+        <span className="text-sm uppercase tracking-widest text-neutral-400">
+          vs {opponent?.username || '...'}
+        </span>
       </header>
 
-      <div className="game-layout">
-        <aside className="game-sidebar left">
+      <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr_280px] gap-4 items-start">
+        <aside className="flex flex-col gap-4 order-2 lg:order-1">
           <RoomStatus roomCode={roomCode} status={status} host={host} guest={guest} />
           <GameTimer clocks={clocks} turn={turn} playerColor={playerColor} />
-          <div className="game-actions">
-            <button type="button" onClick={resign}>Resign</button>
-            <button type="button" onClick={offerDraw}>Offer Draw</button>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={resign} className={btnClass}>Resign</button>
+            <button type="button" onClick={offerDraw} className={btnClass}>Offer Draw</button>
             {drawOffered && (
               <>
-                <button type="button" onClick={acceptDraw}>Accept Draw</button>
-                <button type="button" onClick={declineDraw}>Decline</button>
+                <button type="button" onClick={acceptDraw} className={btnClass}>Accept</button>
+                <button type="button" onClick={declineDraw} className={btnClass}>Decline</button>
               </>
             )}
           </div>
         </aside>
 
-        <main>
+        <main className="order-1 lg:order-2">
           <ChessBoard
             board={board}
             onSquareClick={handleSquareClick}
@@ -225,7 +263,7 @@ export default function Game() {
           />
         </main>
 
-        <aside className="game-sidebar right">
+        <aside className="flex flex-col gap-4 order-3">
           <MoveHistory moveHistory={moveHistory} />
           <ReactionBar socket={socket} roomId={roomId} reactions={reactions} />
           <ChatPanel
@@ -236,6 +274,14 @@ export default function Game() {
           />
         </aside>
       </div>
+
+      {pendingPromotion && (
+        <PromotionPicker
+          color={playerColor}
+          onSelect={handlePromotion}
+          onCancel={() => { setPendingPromotion(null); setSelectedSquare(null); }}
+        />
+      )}
 
       <GameOverModal
         result={gameOver?.result}
