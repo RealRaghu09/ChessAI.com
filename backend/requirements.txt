@@ -1,6 +1,6 @@
 annotated-types
 anyio
-bcrypt
+bcrypt==4.2.1
 certifi
 cffi
 chess
@@ -19,7 +19,7 @@ idna
 iniconfig
 limits
 packaging
-passlib
+passlib==1.7.4
 pluggy
 psycopg2-binary
 pyasn1
@@ -27,7 +27,7 @@ pycparser
 pydantic
 pydantic-settings
 pydantic_core
-pytest
+pytest==8.3.4
 pytest-asyncio
 python-dotenv
 python-jose
