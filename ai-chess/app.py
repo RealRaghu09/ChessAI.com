@@ -60,8 +60,9 @@ Return only JSON and no additional text.
 @app.route('/')
 def index():
     return render_template('index.html')
-@app.route('/make_move', ['POST'])
-def make_move(response):
+@app.route("/make_move", ["POST"])
+def make_move():
+    response = request.get_json()
     data = json.loads(response.data) #[]
     
     moves= data.get('move') # array of positions of each piece
@@ -84,7 +85,8 @@ def make_move(response):
     result = chat_completion.choices[0].message.content
     send_response = {
         'type': 'move',
-        'move': result
+        'move': result['best_move'] , 
+        "description": result['description']
     }
     return json.dumps(send_response)
 if __name__ == '__main__':
