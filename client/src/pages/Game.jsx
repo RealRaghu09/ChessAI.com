@@ -272,6 +272,7 @@ export default function Game() {
             messages={chatMessages}
             onMessage={addListener}
           />
+          <button type="button" disabled className={btnClass}>Ask AI</button>
         </aside>
       </div>
 
