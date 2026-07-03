@@ -1,353 +1,247 @@
-import { useEffect, useState } from "react"
-import { useSocket } from "../hooks/useSocket"
-import { ChessBoard } from "./ChessBoard"
-import { MoveHistory } from "./MoveHistory"
-import { toast } from "react-toastify"
-import {Chess} from 'chess.js'
-import Connecting  from "./Connecting"
-export const INIT_GAME = "init_game"
-export const MOVE = "move"
-// export const API_END_POINT = 'APIENDPOINT'
-export const GAME_OVER = "game_over"
-export const Game = ()=> {
-    const socket = useSocket()
-    const [chess ,setChess]= useState(() => new Chess());
-    const [board , setBoard] = useState(() => {
-        const initialChess = new Chess()
-        return initialChess.board()
-    })
-    const [selectedSquare, setSelectedSquare] = useState(null)
-    const [playerColor, setPlayerColor] = useState(null)
-    const [moveHistory, setMoveHistory] = useState([])
-    // const movesArray = [];
-    // //Button for AI
-    // const aiResponse = async ()=>{
-    //     const data = {
-    //         "moves": movesArray
-    //     }
-    //     try{
-    //         const res = await fetch(API_END_POINT,{
-    //             method: 'POST',
-    //             headers: {
-    //             'Content-Type': 'application/json'
-    //             },
-    //             body: JSON.stringify(data),
-    //         });
-    //         const responseData = await res.json();
-    //         const responseContent = responseData['response']
-    //         console.log(responseContent)
-    //     }catch(error){
-    //         console.log("Error" , error)
-    //     }
-    // }
-    useEffect(()=>{
-        if(!socket) return ;
-        
-        const handleMessage = (event) => {
-            try {
-                const message = JSON.parse(event.data)
-                console.log(message)
-                switch (message.type){
-                    case INIT_GAME:
-                        const newChess = new Chess()
-                        setChess(newChess)
-                        setBoard(newChess.board())
-                        setSelectedSquare(null)
-                        setMoveHistory([]) // Reset move history for new game
-                        // Set player color from payload
-                        if (message.payload && message.payload.color) {
-                            setPlayerColor(message.payload.color)
-                        } else if (message.pay_load && message.pay_load.color) {
-                            // Fallback for snake_case (backward compatibility)
-                            setPlayerColor(message.pay_load.color)
-                        }
-                        console.log("Initialize the game ", message.payload || message.pay_load)
-                        break
-                    case MOVE:
-                        setChess(currentChess => {
-                            const newChessInstance = new Chess(currentChess.fen())
-                            const move = message.payload || message.pay_load // Support both payload and pay_load
-                            // Convert move object to UCI format if needed
-                            let moveStr = move
-                            if (typeof move === 'object' && move.from && move.to) {
-                                moveStr = `${move.from}${move.to}`
-                                if (move.promotion) {
-                                    moveStr += move.promotion
-                                }
-                                // movesArray.append(moveStr)
-                            }
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Chess } from 'chess.js';
+import { toast } from 'react-toastify';
+import { ChatPanel } from '../components/ChatPanel';
+import { ChessBoard } from '../components/ChessBoard';
+import { GameOverModal } from '../components/GameOverModal';
+import { GameTimer } from '../components/GameTimer';
+import { MoveHistory } from '../components/MoveHistory';
+import { ReactionBar } from '../components/ReactionBar';
+import { RoomStatus } from '../components/RoomStatus';
+import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../hooks/useSocket';
+import { WS_EVENTS, sendEvent } from '../services/websocket';
+import Connecting from './Connecting';
 
-                            try {
-                                const moveResult = newChessInstance.move(moveStr)
-                                if (moveResult) {
-                                    setBoard(newChessInstance.board())
-                                    console.log("Move done successfully")
-                                    // Add move to history
-                                    setMoveHistory(prevHistory => [...prevHistory, {
-                                        moveNumber: Math.floor(prevHistory.length / 2) + 1,
-                                        move: moveResult.san,
-                                        color: moveResult.color === 'w' ? 'white' : 'black'
-                                    }])
-                                } else {
-                                    console.error("Invalid move received:", moveStr)
-                                    toast.error(`Invalid move received: in else block ${moveStr}`)
-                                }
-                            } catch (error) {
-                                console.error("Error applying move:", error, "Move:", moveStr)
-                                toast.error(`Invalid move received: in catch block${moveStr}`)
-                            }
-                            return newChessInstance
-                        })
-                        break
-                    case GAME_OVER:
-                        console.log("Game Over")
-                        break
-                }
-            } catch (error) {
-                console.error("Error parsing message:", error)
-            }
+function buildHistoryFromPgn(pgn) {
+  if (!pgn) return [];
+  try {
+    const chess = new Chess();
+    chess.loadPgn(pgn);
+    const history = [];
+    const verbose = chess.history({ verbose: true });
+    verbose.forEach((m, idx) => {
+      history.push({
+        moveNumber: Math.floor(idx / 2) + 1,
+        move: m.san,
+        color: m.color === 'w' ? 'white' : 'black',
+      });
+    });
+    return history;
+  } catch {
+    return [];
+  }
+}
+
+export default function Game() {
+  const { roomId: routeRoomId } = useParams();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { socket, connected, addListener } = useSocket();
+
+  const [chess, setChess] = useState(() => new Chess());
+  const [board, setBoard] = useState(() => new Chess().board());
+  const [selectedSquare, setSelectedSquare] = useState(null);
+  const [playerColor, setPlayerColor] = useState(null);
+  const [moveHistory, setMoveHistory] = useState([]);
+  const [roomId, setRoomId] = useState(routeRoomId || null);
+  const [roomCode, setRoomCode] = useState('');
+  const [status, setStatus] = useState('waiting');
+  const [host, setHost] = useState(null);
+  const [guest, setGuest] = useState(null);
+  const [clocks, setClocks] = useState({ white_ms: 600000, black_ms: 600000 });
+  const [turn, setTurn] = useState('white');
+  const [gameOver, setGameOver] = useState(null);
+  const [drawOffered, setDrawOffered] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [reactions, setReactions] = useState([]);
+
+  const applyFen = useCallback((fen, pgn) => {
+    const instance = new Chess(fen);
+    setChess(instance);
+    setBoard(instance.board());
+    setTurn(instance.turn() === 'w' ? 'white' : 'black');
+    if (pgn) setMoveHistory(buildHistoryFromPgn(pgn));
+  }, []);
+
+  useEffect(() => {
+    if (!socket || !routeRoomId) return;
+    sendEvent(socket, WS_EVENTS.ROOM_RECONNECT, { roomId: routeRoomId });
+  }, [socket, routeRoomId]);
+
+  useEffect(() => {
+    return addListener((message) => {
+      const p = message.payload;
+      switch (message.type) {
+        case WS_EVENTS.ROOM_JOINED:
+          setRoomId(p.roomId);
+          setRoomCode(p.roomCode || '');
+          setStatus(p.status);
+          setHost(p.host);
+          setGuest(p.guest);
+          break;
+        case WS_EVENTS.GAME_START: {
+          setRoomId(p.roomId);
+          setRoomCode(p.roomCode || roomCode);
+          setStatus('in_progress');
+          setHost(p.host || host);
+          setGuest(p.guest || guest);
+          setClocks(p.clocks || clocks);
+          if (p.fen) applyFen(p.fen, p.pgn);
+          if (user?.id === p.whiteUserId) setPlayerColor('white');
+          else if (user?.id === p.blackUserId) setPlayerColor('black');
+          else if (p.color) setPlayerColor(p.color);
+          break;
         }
-        
-        socket.onmessage = handleMessage
-        
-        return () => {
-            socket.onmessage = null
-        }
-    },[socket])
-    if (!socket){
-        return <div>
-            <Connecting/>
-        </div>
+        case WS_EVENTS.GAME_MOVE:
+          applyFen(p.fen, p.pgn);
+          setClocks(p.clocks || clocks);
+          setSelectedSquare(null);
+          break;
+        case WS_EVENTS.GAME_MOVE_REJECTED:
+          toast.error(`Move rejected: ${p.reason}`);
+          if (p.fen) applyFen(p.fen);
+          break;
+        case WS_EVENTS.GAME_DRAW_OFFER:
+          setDrawOffered(true);
+          toast.info('Opponent offered a draw');
+          break;
+        case WS_EVENTS.GAME_END:
+          setGameOver({ result: p.result, reason: p.reason });
+          setStatus('completed');
+          break;
+        case WS_EVENTS.CHAT_RECEIVE:
+          setChatMessages((prev) => [...prev, {
+            username: p.username,
+            content: p.content,
+            timestamp: p.timestamp,
+          }]);
+          break;
+        case WS_EVENTS.REACTION_UPDATE:
+          setReactions((prev) => [...prev, { username: p.username, emoji: p.emoji }]);
+          break;
+        default:
+          break;
+      }
+    });
+  }, [addListener, applyFen, user, clocks, host, guest, roomCode]);
+
+  if (!connected || !socket) return <Connecting />;
+
+  const getPieceAtSquare = (square) => {
+    const file = square.charCodeAt(0) - 97;
+    const rank = 8 - parseInt(square[1], 10);
+    return board[rank]?.[file] || null;
+  };
+
+  const getPossibleMoves = () => {
+    if (!selectedSquare || !playerColor) return [];
+    const temp = new Chess(chess.fen());
+    return temp.moves({ square: selectedSquare, verbose: true }).map((m) => m.to);
+  };
+
+  const handleSquareClick = (square) => {
+    if (!playerColor || gameOver || status !== 'in_progress') return;
+
+    if (!selectedSquare) {
+      const piece = getPieceAtSquare(square);
+      if (!piece) return;
+      const isMine = (playerColor === 'white' && piece.color === 'w')
+        || (playerColor === 'black' && piece.color === 'b');
+      if (isMine) setSelectedSquare(square);
+      return;
     }
-    if (!board) {
-        return <div>Loading board...</div>
+
+    if (selectedSquare === square) {
+      setSelectedSquare(null);
+      return;
     }
-    
-    const handleSquareClick = (square) => {
-        try {
-            console.log("Square clicked:", square, "Selected:", selectedSquare, "Player color:", playerColor)
 
-            // If no square is selected, select this square (if it has a piece)
-            if (!selectedSquare) {
-                const piece = getPieceAtSquare(square)
-                console.log("No selection, piece at square:", piece)
-                if (piece) {
-                    // Check if it's the player's piece (or allow if playerColor not set yet)
-                    const isPlayerPiece = playerColor === null ||
-                                         (playerColor === 'white' && piece.color === 'w') ||
-                                         (playerColor === 'black' && piece.color === 'b')
-                    console.log("Is player piece:", isPlayerPiece)
-                    if (isPlayerPiece) {
-                        setSelectedSquare(square)
-                        console.log("Square selected:", square)
-                    }
-                }
-                return
-            }
-
-            // If same square is clicked, deselect
-            if (selectedSquare === square) {
-                setSelectedSquare(null)
-                console.log("Deselected square")
-                return
-            }
-
-            // Try to make a move
-            const move = {
-                from: selectedSquare,
-                to: square
-            }
-
-            console.log("Attempting move:", move)
-
-            // Check if move is valid locally first
-            try {
-                const tempChess = new Chess(chess.fen())
-                const moveStr = `${move.from}${move.to}`
-                console.log("Move string:", moveStr)
-
-                // If playerColor is null (testing mode), temporarily set turn to the piece's color
-                const originalTurn = tempChess.turn()
-                if (playerColor === null) {
-                    const piece = getPieceAtSquare(selectedSquare)
-                    if (piece) {
-                        // Set turn to match the piece being moved
-                        const pieceColor = piece.color === 'w' ? 'white' : 'black'
-                        if (pieceColor === 'black' && tempChess.turn() === 'w') {
-                            // Force black's turn for testing
-                            tempChess.load(tempChess.fen().replace(' w ', ' b '))
-                        }
-                    }
-                }
-
-                try {
-                    const moveResult = tempChess.move(moveStr)
-                    console.log("Move result:", moveResult)
-
-                    if (moveResult) {
-                        // Send move to server if socket is available
-                        if (socket && socket.readyState === WebSocket.OPEN) {
-                            socket.send(JSON.stringify({
-                                type: MOVE,
-                                move: move
-                            }))
-                            console.log("Move sent to server")
-                        } else {
-                            console.log("Socket not available, making local move only")
-                        }
-
-                        // Optimistic update
-                        setChess(tempChess)
-                        setBoard(tempChess.board())
-                        setSelectedSquare(null)
-                        // Add move to history
-                        setMoveHistory(prevHistory => [...prevHistory, {
-                            moveNumber: Math.floor(prevHistory.length / 2) + 1,
-                            move: moveResult.san,
-                            color: moveResult.color === 'w' ? 'white' : 'black'
-                        }])
-                        console.log("Move applied successfully")
-                    } else {
-                        console.log("Invalid move, trying to select new square")
-                        toast.error(`Invalid move: ${move.from} to ${move.to}`)
-                        // Invalid move, try selecting the new square if it has a piece
-                        const piece = getPieceAtSquare(square)
-                        if (piece) {
-                            const isPlayerPiece = playerColor === null ||
-                                                 (playerColor === 'white' && piece.color === 'w') ||
-                                                 (playerColor === 'black' && piece.color === 'b')
-                            if (isPlayerPiece) {
-                                setSelectedSquare(square)
-                            } else {
-                                setSelectedSquare(null)
-                            }
-                        } else {
-                            setSelectedSquare(null)
-                        }
-                    }
-                } catch (moveError) {
-                    console.log("Move validation error:", moveError)
-                    toast.error(`Invalid move:${moveError} ${move.from} to ${move.to}`)
-                    // Invalid move, try selecting the new square if it has a piece
-                    const piece = getPieceAtSquare(square)
-                    if (piece) {
-                        const isPlayerPiece = playerColor === null ||
-                                             (playerColor === 'white' && piece.color === 'w') ||
-                                             (playerColor === 'black' && piece.color === 'b')
-                        if (isPlayerPiece) {
-                            setSelectedSquare(square)
-                        } else {
-                            setSelectedSquare(null)
-                        }
-                    } else {
-                        setSelectedSquare(null)
-                    }
-                }
-            } catch (error) {
-                console.error("Error making move:", error)
-                // Try selecting the new square if it has a piece
-                try {
-                    const piece = getPieceAtSquare(square)
-                    if (piece) {
-                        const isPlayerPiece = playerColor === null ||
-                                             (playerColor === 'white' && piece.color === 'w') ||
-                                             (playerColor === 'black' && piece.color === 'b')
-                        if (isPlayerPiece) {
-                            setSelectedSquare(square)
-                        } else {
-                            setSelectedSquare(null)
-                        }
-                    } else {
-                        setSelectedSquare(null)
-                    }
-                } catch (fallbackError) {
-                    console.error("Error in fallback selection:", fallbackError)
-                    setSelectedSquare(null)
-                }
-            }
-        } catch (error) {
-            console.error("Critical error in handleSquareClick:", error)
-            setSelectedSquare(null)
-        }
+    const move = { from: selectedSquare, to: square };
+    const temp = new Chess(chess.fen());
+    const moveStr = `${move.from}${move.to}`;
+    try {
+      const result = temp.move(moveStr);
+      if (!result) {
+        toast.error('Invalid move');
+        setSelectedSquare(null);
+        return;
+      }
+      sendEvent(socket, WS_EVENTS.GAME_MOVE, { roomId, move });
+      setSelectedSquare(null);
+    } catch {
+      const piece = getPieceAtSquare(square);
+      if (piece) {
+        const isMine = (playerColor === 'white' && piece.color === 'w')
+          || (playerColor === 'black' && piece.color === 'b');
+        setSelectedSquare(isMine ? square : null);
+      } else {
+        setSelectedSquare(null);
+      }
     }
-    
-    const getPieceAtSquare = (square) => {
-        try {
-            if (!square || square.length !== 2) return null
-            const file = square[0].charCodeAt(0) - 97 // a=0, h=7
-            const rank = 8 - parseInt(square[1]) // 1=7, 8=0
-            console.log(`Getting piece at ${square}: file=${file}, rank=${rank}`)
-            if (rank >= 0 && rank < 8 && file >= 0 && file < 8 && board && board[rank]) {
-                const piece = board[rank][file] || null
-                console.log(`Piece found:`, piece)
-                return piece
-            }
-            console.log(`No piece found at ${square}`)
-            return null
-        } catch (error) {
-            console.error(`Error getting piece at square ${square}:`, error)
-            return null
-        }
-    }
-    
-    const getPossibleMoves = () => {
-        if (!selectedSquare) return []
-        const tempChess = new Chess(chess.fen())
-        const moves = tempChess.moves({ square: selectedSquare, verbose: true })
-        return moves.map(m => m.to)
-    }
-    
-    return (
-        <div style={{ padding: '2rem', minHeight: '100vh', background: 'linear-gradient(to bottom right, #000000, #0f172a, #172554)' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2rem' }}>
-                <div style={{ color: 'white', fontSize: '1.2rem', fontWeight: '600', textAlign: 'center' }}>
-                    {playerColor ? (
-                        <>You are playing as: <span style={{ textTransform: 'capitalize' }}>{playerColor}</span></>
-                    ) : (
-                        <>Click "Start Game" to begin. You can still move pieces to test.</>
-                    )}
-                    {selectedSquare && (
-                        <div style={{ marginTop: '0.5rem', fontSize: '1rem', color: '#60a5fa' }}>
-                            Selected: {selectedSquare}
-                        </div>
-                    )}
-                </div>
-                <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
-                    <ChessBoard
-                        board={board}
-                        onSquareClick={handleSquareClick}
-                        selectedSquare={selectedSquare}
-                        possibleMoves={getPossibleMoves()}
-                    />
-                    <MoveHistory moveHistory={moveHistory} />
-                </div>
-                {/* <div>
-                    <button onClick={aiResponse}>
-                        AI
-                    </button>
-                </div> */}
-                <button 
-                    onClick={()=>{
-                        if (socket && socket.readyState === WebSocket.OPEN) {
-                            socket.send(JSON.stringify({
-                                "type": INIT_GAME
-                            }))
-                        }
-                    }}
-                    style={{
-                        padding: '12px 24px',
-                        fontSize: '1.1rem',
-                        backgroundColor: '#2563eb',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        fontWeight: '600'
-                    }}
-                >
-                    Start Game
-                </button>
-            </div>
-        </div>
-    )
+  };
+
+  const resign = () => sendEvent(socket, WS_EVENTS.GAME_RESIGN, { roomId });
+  const offerDraw = () => sendEvent(socket, WS_EVENTS.GAME_DRAW_OFFER, { roomId });
+  const acceptDraw = () => sendEvent(socket, WS_EVENTS.GAME_DRAW_RESPONSE, { roomId, accept: true });
+  const declineDraw = () => {
+    sendEvent(socket, WS_EVENTS.GAME_DRAW_RESPONSE, { roomId, accept: false });
+    setDrawOffered(false);
+  };
+
+  const opponent = user?.id === host?.id ? guest : host;
+
+  return (
+    <div className="game-page">
+      <header className="game-header">
+        <button type="button" onClick={() => navigate('/lobby')}>← Lobby</button>
+        <span>vs {opponent?.username || '...'}</span>
+      </header>
+
+      <div className="game-layout">
+        <aside className="game-sidebar left">
+          <RoomStatus roomCode={roomCode} status={status} host={host} guest={guest} />
+          <GameTimer clocks={clocks} turn={turn} playerColor={playerColor} />
+          <div className="game-actions">
+            <button type="button" onClick={resign}>Resign</button>
+            <button type="button" onClick={offerDraw}>Offer Draw</button>
+            {drawOffered && (
+              <>
+                <button type="button" onClick={acceptDraw}>Accept Draw</button>
+                <button type="button" onClick={declineDraw}>Decline</button>
+              </>
+            )}
+          </div>
+        </aside>
+
+        <main>
+          <ChessBoard
+            board={board}
+            onSquareClick={handleSquareClick}
+            selectedSquare={selectedSquare}
+            possibleMoves={getPossibleMoves()}
+            flipped={playerColor === 'black'}
+          />
+        </main>
+
+        <aside className="game-sidebar right">
+          <MoveHistory moveHistory={moveHistory} />
+          <ReactionBar socket={socket} roomId={roomId} reactions={reactions} />
+          <ChatPanel
+            socket={socket}
+            roomId={roomId}
+            messages={chatMessages}
+            onMessage={addListener}
+          />
+        </aside>
+      </div>
+
+      <GameOverModal
+        result={gameOver?.result}
+        reason={gameOver?.reason}
+        onClose={() => navigate('/lobby')}
+      />
+    </div>
+  );
 }

@@ -1,32 +1,34 @@
-import { useState } from 'react'
-import './App.css'
-import { BrowserRouter, Route, Routes} from "react-router-dom";
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
-import { Game } from './pages/Game';
-import { Landing } from './pages/Landing';
-function App() {
-  const [count, setCount] = useState(0)
+import 'react-toastify/dist/ReactToastify.css';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './routes/ProtectedRoute';
+import Game from './pages/Game';
+import Landing from './pages/Landing';
+import Leaderboard from './pages/Leaderboard';
+import Lobby from './pages/Lobby';
+import Login from './pages/Login';
+import Profile from './pages/Profile';
+import Register from './pages/Register';
+import './App.css';
 
+function App() {
   return (
-    <BrowserRouter>
-    <Routes>
-      <Route path="/" element= {<Landing/>}/>
-      <Route path="/game" element = {<Game/>}/>
-    </Routes>
-    <ToastContainer
-      position="top-right"
-      autoClose={3000}
-      hideProgressBar={false}
-      newestOnTop={false}
-      closeOnClick
-      rtl={false}
-      pauseOnFocusLoss
-      draggable
-      pauseOnHover
-      theme="dark"
-    />
-    </BrowserRouter>
-  )
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/lobby" element={<ProtectedRoute><Lobby /></ProtectedRoute>} />
+          <Route path="/game/:roomId" element={<ProtectedRoute><Game /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
+        </Routes>
+        <ToastContainer position="top-right" autoClose={3000} theme="dark" />
+      </BrowserRouter>
+    </AuthProvider>
+  );
 }
 
-export default App
+export default App;

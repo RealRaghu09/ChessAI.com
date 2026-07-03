@@ -1,0 +1,21 @@
+.move-history-panel {
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 8px;
+  padding: 1rem;
+  min-width: 220px;
+  border: 1px solid #374151;
+  color: white;
+}
+
+.move-history-panel h3 { margin: 0 0 1rem; text-align: center; }
+.move-history-panel .empty { color: #9ca3af; text-align: center; font-style: italic; }
+
+.move-grid {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.move-row { display: contents; }
+.white-move { background: rgba(59, 130, 246, 0.2); padding: 0.25rem; border-radius: 4px; text-align: center; }
+.black-move { background: rgba(107, 114, 128, 0.2); padding: 0.25rem; border-radius: 4px; text-align: center; }
