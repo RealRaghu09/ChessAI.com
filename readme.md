@@ -1,6 +1,6 @@
 # ChessAI.com — Technical Module Documentation
 
-[Watch the demo](https://youtu.be/usFw20-xZH4)
+[Watch the demo](https://youtu.be/mlcNyVpGxSE)
 
 **Platform Type:** Real-Time Multiplayer Chess with User Accounts, ELO Rankings, and AI-Assisted Move Analysis  
 **Validation Layer:** Dual-layer (Client-side + Server-side)  
