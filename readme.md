@@ -1,7 +1,7 @@
 # ChessAI.com — Technical Module Documentation
 
 [Watch the demo](https://youtu.be/mlcNyVpGxSE)
-
+[Live Link](https://chess-ai-com.vercel.app/)
 **Platform Type:** Real-Time Multiplayer Chess with User Accounts, ELO Rankings, and AI-Assisted Move Analysis  
 **Validation Layer:** Dual-layer (Client-side + Server-side)  
 **Communication Protocol:** WebSocket (bidirectional, persistent connection) + REST API  
