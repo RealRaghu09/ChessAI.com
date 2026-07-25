@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     database_url: str | None = None # Dynamically adds the data when app is connected to the db url
     data_dir: Path = Path(os.getenv("DATA_DIR", str(Path(__file__).parent / "data"))) # else stores the data in data folder in json format
 
-    jwt_secret: str = "change-me-in-production"
+    jwt_secret: str = os.getenv("JWT_SECRET")
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60 * 24 * 7
 # Default values for Elo rating system

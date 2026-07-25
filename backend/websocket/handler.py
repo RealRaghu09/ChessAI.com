@@ -68,7 +68,7 @@ async def handle_websocket(websocket: WebSocket) -> None:
     user_id = await authenticate_ws(websocket)
     if not user_id:
         # #region agent log
-        print("❌ AUTH FAILED")
+        print(" AUTH FAILED")
         _dbg("C", "handler.py:handle_websocket", "reject: no user_id", {"reason": "auth_failed"})
         # #endregion
         await websocket.close(code=4001)
@@ -83,7 +83,7 @@ async def handle_websocket(websocket: WebSocket) -> None:
     # #endregion
     if not user:
         # #region agent log
-        print("❌ USER NOT FOUND")
+        print(" USER NOT FOUND")
         _dbg("C", "handler.py:handle_websocket", "reject: user not found", {"user_id": user_id})
         # #endregion
         await websocket.close(code=4001)
@@ -100,7 +100,7 @@ async def handle_websocket(websocket: WebSocket) -> None:
         E.AUTH_CONNECTED,
         {"userId": user.id, "username": user.username, "elo": user.elo},
     )
-    print("✅ STEP 6: CONNECTED")
+    print("STEP 6: CONNECTED")
     rate_window: list[float] = []
 
     try:

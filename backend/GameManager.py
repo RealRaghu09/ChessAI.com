@@ -16,17 +16,17 @@ class GameManager:
 
     def addUser(self, socket) -> None:
         self.__users.append(socket)
-        # Note: Message handler should be set up in app.py
+        #handle the message and reaction through same ws instance 
 
     def removeUser(self, socket, server) -> None:
         self.__users = [
             user for user in self.__users
             if user["id"] != socket["id"]
         ]
-        # Also remove from pending if this user was pending
+        # remove 
         if self.__pendingUser is not None and self.__pendingUser["id"] == socket["id"]:
             self.__pendingUser = None
-        # Remove games involving this user
+        # Remove from game ws instance
         self.__games = [
             game for game in self.__games
             if game._Game__player1["id"] != socket["id"] and game._Game__player2["id"] != socket["id"]
@@ -38,7 +38,7 @@ class GameManager:
 
         if message_type == INIT_GAME:
             if self.__pendingUser is not None:
-                # Create a new game
+                # a new game
                 pending_id = self.__pendingUser["id"]
                 current_id = socket["id"]
                 game = Game(self.__pendingUser, socket, server)
