@@ -23,7 +23,6 @@ USER_ONLINE = "user:online"
 USER_OFFLINE = "user:offline"
 ERROR = "error"
 
-# Legacy events (backward compat)
 INIT_GAME = "init_game"
 MOVE = "move"
 GAME_OVER = "game_over"

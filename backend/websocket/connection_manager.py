@@ -1,9 +1,9 @@
 import json
-import logging
+
 from typing import Any
 
 from fastapi import WebSocket
-logger = logging.getLogger(__name__)
+
 
 
 class ConnectionManager:
@@ -35,7 +35,7 @@ class ConnectionManager:
             try:
                 await ws.send_text(json.dumps({"type": event_type, "payload": payload}))
             except Exception as exc:
-                logger.warning("Failed to send to user %s: %s", user_id, exc)
+                print(f"Failed to send to user {user_id}: {exc}")
 
     async def broadcast_room(
         self, room_id: str, event_type: str, payload: dict[str, Any], exclude: str | None = None

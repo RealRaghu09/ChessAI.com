@@ -1,11 +1,6 @@
-import logging
-
 from config import get_settings
 from storage.json_store import StorageProvider
 from storage.postgres import JsonStorage, PostgresStorage
-
-logger = logging.getLogger(__name__)
-
 _storage_provider: StorageProvider | None = None
 
 
@@ -22,13 +17,13 @@ def get_storage_provider() -> StorageProvider:
         try:
             provider = PostgresStorage(settings.database_url)
             if provider.health_check():
-                logger.info("Using PostgreSQL storage backend")
+                print("Using PostgreSQL storage backend")
                 _storage_provider = provider
                 return provider
         except Exception as exc:
-            logger.warning("Database unavailable, falling back to JSON: %s", exc)
+            print("Database unavailable, falling back to JSON: ", exc)
 
-    logger.info("Using JSON file storage backend")
+    print("Using JSON file storage backend because no db conn")
     _storage_provider = JsonStorage(settings.data_dir)
     return _storage_provider
 

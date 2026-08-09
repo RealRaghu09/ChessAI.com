@@ -1,4 +1,3 @@
-import logging
 from datetime import datetime
 
 from sqlalchemy import (
@@ -17,7 +16,6 @@ from config import get_settings
 from models.domain import ChatMessage, EloHistory, Match, Reaction, Room, RoomStatus, User
 from storage.json_store import JsonCollectionStore, StorageProvider
 
-logger = logging.getLogger(__name__)
 Base = declarative_base()
 
 
@@ -117,7 +115,7 @@ class PostgresStorage(StorageProvider):
                 conn.execute(__import__("sqlalchemy").text("SELECT 1"))
             return True
         except Exception as exc:
-            logger.warning("PostgreSQL health check failed: %s", exc)
+            print("PostgreSQL health check failed: ", exc)
             return False
 
     def get_session(self) -> Session:

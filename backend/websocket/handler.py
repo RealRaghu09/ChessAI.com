@@ -1,5 +1,4 @@
 import json
-import logging
 import time
 from typing import Any
 
@@ -15,18 +14,6 @@ from services.room_service import RoomService
 from websocket import events as E
 from websocket.connection_manager import ConnectionManager
 
-logger = logging.getLogger(__name__)
-
-# #region agent log
-_DEBUG_LOG = "chessAI/.cursor/debug-83e676.log"
-
-def _dbg(hypothesis_id: str, location: str, message: str, data: dict) -> None:
-    try:
-        with open(_DEBUG_LOG, "a", encoding="utf-8") as f:
-            f.write(json.dumps({"sessionId": "83e676", "hypothesisId": hypothesis_id, "location": location, "message": message, "data": data, "timestamp": int(time.time() * 1000)}) + "\n")
-    except Exception:
-        pass
-# #endregion
 
 manager = ConnectionManager()
 room_service = RoomService()
@@ -41,17 +28,11 @@ def _get_payload(message: dict) -> dict:
 
 async def authenticate_ws(websocket: WebSocket) -> str | None:
     token = websocket.query_params.get("token")
-    # #region agent log
-    _dbg("E", "handler.py:authenticate_ws", "token from query_params", {"has_token": bool(token), "token_len": len(token) if token else 0})
-    # #endregion
     if not token:
         return None
     print("TOKEN", token);
     data = decode_access_token(token)
-    print("DATA", data);
-    # #region agent log
-    _dbg("A", "handler.py:authenticate_ws", "jwt decode result", {"decode_ok": bool(data), "has_sub": bool(data and data.get("sub")), "sub": data.get("sub") if data else None})
-    # #endregion
+    print("DATA", data)
     if not data or not data.get("sub"):
         return None
     print("SUB", data["sub"])
@@ -60,38 +41,24 @@ async def authenticate_ws(websocket: WebSocket) -> str | None:
 
 
 async def handle_websocket(websocket: WebSocket) -> None:
-    # #region agent log
-    _dbg("D", "handler.py:handle_websocket", "handler entered", {"origin": websocket.headers.get("origin"), "path": str(websocket.url.path)})
-    # #endregion
     print("=" * 60)
     print("STEP 1: ENTER handle_websocket")
     user_id = await authenticate_ws(websocket)
     if not user_id:
-        # #region agent log
-        print(" AUTH FAILED")
-        _dbg("C", "handler.py:handle_websocket", "reject: no user_id", {"reason": "auth_failed"})
-        # #endregion
         await websocket.close(code=4001)
         return
     print("STEP 3: got repo")
     user_repo = get_user_repository()
     user = user_repo.get_user(user_id)
     print("STEP 4: user =", user)
-    # #region agent log
+    
     storage = user_repo.storage
-    _dbg("B", "handler.py:handle_websocket", "get_user result", {"user_id": user_id, "user_found": bool(user), "storage_backend": getattr(storage, "backend_name", "unknown")})
-    # #endregion
+    
     if not user:
-        # #region agent log
         print(" USER NOT FOUND")
-        _dbg("C", "handler.py:handle_websocket", "reject: user not found", {"user_id": user_id})
-        # #endregion
         await websocket.close(code=4001)
         return
     print("STEP 5: CONNECTING")
-    # #region agent log
-    _dbg("C", "handler.py:handle_websocket", "auth success, accepting", {"user_id": user_id})
-    # #endregion
     await manager.connect(user_id, websocket)
     user_repo.set_online_status(user_id, True)
     await manager.broadcast_all(E.USER_ONLINE, {"userId": user_id, "username": user.username})
@@ -121,7 +88,7 @@ async def handle_websocket(websocket: WebSocket) -> None:
 
             await route_message(user_id, message)
     except WebSocketDisconnect:
-        pass
+        print(f"There is an error with ws will notify : {WebSocketDisconnect} with user id {user_id}") 
     finally:
         manager.disconnect(user_id)
         user_repo.set_online_status(user_id, False)
@@ -132,7 +99,6 @@ async def route_message(user_id: str, message: dict[str, Any]) -> None:
     event_type = message.get("type", "")
     payload = _get_payload(message)
 
-    # Legacy support
     if event_type == E.INIT_GAME:
         await handle_room_create(user_id, {})
         return
@@ -337,7 +303,6 @@ async def _end_game(room_id: str, result: str, reason: str, pgn: str) -> None:
         ranking_service.record_match(room, result, pgn)
     end_payload = {"roomId": room_id, "result": result, "reason": reason, "pgn": pgn}
     await manager.broadcast_room(room_id, E.GAME_END, end_payload)
-    # Legacy
     winner = None
     if result == "white_wins":
         winner = "white"

@@ -1,13 +1,10 @@
 import json
-import logging
 import threading
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Generic, TypeVar
 
 from pydantic import BaseModel
-
-logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -17,7 +14,7 @@ class StorageProvider(ABC):
 
     @abstractmethod
     def health_check(self) -> bool:
-        pass
+        print("health check route for db.")
 
 
 class JsonCollectionStore(Generic[T]):

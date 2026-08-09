@@ -13,7 +13,7 @@ from websocket.handler import handle_websocket
 
 
 settings = get_settings()
-setup_logging(settings.debug)
+setup_logging(settings.debug) # Local 
 app = FastAPI(title=settings.app_name, version="1.0.0", docs_url="/api/v1/docs", openapi_url="/api/v1/openapi.json")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
