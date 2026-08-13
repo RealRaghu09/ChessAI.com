@@ -16,15 +16,15 @@ ChessAI.com is a full-stack online chess platform. Players register accounts, cr
 
 ### Routes
 
-| Route            | Access    | Description                                      |
-|------------------|-----------|--------------------------------------------------|
-| `/`              | Public    | Landing page with login/register entry points    |
-| `/login`         | Public    | Email and password login                         |
-| `/register`      | Public    | New account registration                       |
-| `/lobby`         | Protected | Create or join a room, view ELO                  |
-| `/game/:roomId`  | Protected | Live game session                                |
-| `/profile`       | Protected | Player stats and match history                   |
-| `/leaderboard`   | Protected | Top players ranked by ELO                        |
+| Route           | Access    | Description                                   |
+| --------------- | --------- | --------------------------------------------- |
+| `/`             | Public    | Landing page with login/register entry points |
+| `/login`        | Public    | Email and password login                      |
+| `/register`     | Public    | New account registration                      |
+| `/lobby`        | Protected | Create or join a room, view ELO               |
+| `/game/:roomId` | Protected | Live game session                             |
+| `/profile`      | Protected | Player stats and match history                |
+| `/leaderboard`  | Protected | Top players ranked by ELO                     |
 
 ---
 
@@ -35,7 +35,7 @@ ChessAI.com is a full-stack online chess platform. Players register accounts, cr
 
 **Flow:**
 
-1. Player registers or logs in via `POST /api/v1/auth/register` or `POST /api/v1/auth/login`
+1. Player registers or logs in via `POST /auth/register` or `POST /auth/login`
 2. Server returns an access token and public user profile (username, ELO, stats)
 3. Protected frontend routes require a valid token via `ProtectedRoute`
 4. WebSocket connection is established at `/ws?token=<jwt>` — unauthenticated connections are rejected
@@ -143,18 +143,18 @@ Two authenticated players connect to a shared game session over a persistent Web
 
 The backend maintains the following game state data at all times:
 
-| State Field         | Description                                              |
-|---------------------|----------------------------------------------------------|
-| Board position      | FEN string encoding piece placement                      |
-| Active color        | Which side (White/Black) is to move                      |
-| Castling rights     | Availability of kingside/queenside castling per side     |
-| En passant target   | Target square for en passant capture, if applicable      |
-| Halfmove clock      | Moves since last capture or pawn advance (50-move rule)  |
-| Fullmove number     | Incremented after Black's move                           |
-| White/Black clocks  | Remaining time in milliseconds                           |
-| Increment           | Added to the moving player's clock after each move       |
-| PGN                 | Full move list stored incrementally                      |
-| Game status         | waiting, in_progress, completed                          |
+| State Field        | Description                                             |
+| ------------------ | ------------------------------------------------------- |
+| Board position     | FEN string encoding piece placement                     |
+| Active color       | Which side (White/Black) is to move                     |
+| Castling rights    | Availability of kingside/queenside castling per side    |
+| En passant target  | Target square for en passant capture, if applicable     |
+| Halfmove clock     | Moves since last capture or pawn advance (50-move rule) |
+| Fullmove number    | Incremented after Black's move                          |
+| White/Black clocks | Remaining time in milliseconds                          |
+| Increment          | Added to the moving player's clock after each move      |
+| PGN                | Full move list stored incrementally                     |
+| Game status        | waiting, in_progress, completed                         |
 
 **Validation Logic:**
 
@@ -192,9 +192,9 @@ After each completed rated match between two registered players, ELO ratings are
 3. User stats updated: total matches, wins, losses, draws, win percentage, current streak
 4. ELO history entry appended per player for the match
 
-**Leaderboard:** `GET /api/v1/leaderboard` returns top players sorted by ELO with W/L/D and win percentage.
+**Leaderboard:** `GET /leaderboard` returns top players sorted by ELO with W/L/D and win percentage.
 
-**Profile:** `GET /api/v1/users/:id/matches` returns match history with result, duration, and post-game ELO.
+**Profile:** `GET /users/:id/matches` returns match history with result, duration, and post-game ELO.
 
 ---
 
@@ -229,11 +229,11 @@ The AI subsystem is a Small Language Model (SLM) fine-tuned on historical chess 
 
 ### Inference Performance
 
-| Metric                  | Value              |
-|-------------------------|--------------------|
-| Tokens per second       | 10 – 20 tokens/sec |
-| Time to first token     | 150 – 250 ms       |
-| Total response latency  | ~400 ms            |
+| Metric                 | Value              |
+| ---------------------- | ------------------ |
+| Tokens per second      | 10 – 20 tokens/sec |
+| Time to first token    | 150 – 250 ms       |
+| Total response latency | ~400 ms            |
 
 These benchmarks reflect single-request local inference with GPU acceleration.
 
@@ -267,35 +267,35 @@ These benchmarks reflect single-request local inference with GPU acceleration.
 
 The board uses standard algebraic notation. Files are labeled A through H (left to right from White's perspective), and ranks are labeled 1 through 8 (bottom to top from White's perspective).
 
-|       | A  | B  | C  | D  | E  | F  | G  | H  |
-|-------|----|----|----|----|----|----|----|----|
-| **8** | A8 | B8 | C8 | D8 | E8 | F8 | G8 | H8 |
-| **7** | A7 | B7 | C7 | D7 | E7 | F7 | G7 | H7 |
-| **6** | A6 | B6 | C6 | D6 | E6 | F6 | G6 | H6 |
-| **5** | A5 | B5 | C5 | D5 | E5 | F5 | G5 | H5 |
-| **4** | A4 | B4 | C4 | D4 | E4 | F4 | G4 | H4 |
-| **3** | A3 | B3 | C3 | D3 | E3 | F3 | G3 | H3 |
-| **2** | A2 | B2 | C2 | D2 | E2 | F2 | G2 | H2 |
-| **1** | A1 | B1 | C1 | D1 | E1 | F1 | G1 | H1 |
+|       | A   | B   | C   | D   | E   | F   | G   | H   |
+| ----- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **8** | A8  | B8  | C8  | D8  | E8  | F8  | G8  | H8  |
+| **7** | A7  | B7  | C7  | D7  | E7  | F7  | G7  | H7  |
+| **6** | A6  | B6  | C6  | D6  | E6  | F6  | G6  | H6  |
+| **5** | A5  | B5  | C5  | D5  | E5  | F5  | G5  | H5  |
+| **4** | A4  | B4  | C4  | D4  | E4  | F4  | G4  | H4  |
+| **3** | A3  | B3  | C3  | D3  | E3  | F3  | G3  | H3  |
+| **2** | A2  | B2  | C2  | D2  | E2  | F2  | G2  | H2  |
+| **1** | A1  | B1  | C1  | D1  | E1  | F1  | G1  | H1  |
 
 ---
 
 ## API Endpoints
 
-| Method | Path                        | Description                    |
-|--------|-----------------------------|--------------------------------|
-| GET    | `/api/v1/health`            | Health check and storage backend |
-| POST   | `/api/v1/auth/register`     | Create account                 |
-| POST   | `/api/v1/auth/login`        | Login                          |
-| POST   | `/api/v1/auth/logout`       | Logout                         |
-| GET    | `/api/v1/auth/me`           | Current user profile           |
-| GET    | `/api/v1/users/:id`         | Public user profile            |
-| PATCH  | `/api/v1/users/me`          | Update own profile             |
-| GET    | `/api/v1/users/:id/matches` | Match history for a user       |
-| GET    | `/api/v1/leaderboard`       | Top players by ELO             |
-| WS     | `/ws?token=<jwt>`           | Real-time game and lobby events |
+| Method | Path                 | Description                      |
+| ------ | -------------------- | -------------------------------- |
+| GET    | `/health`            | Health check and storage backend |
+| POST   | `/auth/register`     | Create account                   |
+| POST   | `/auth/login`        | Login                            |
+| POST   | `/auth/logout`       | Logout                           |
+| GET    | `/auth/me`           | Current user profile             |
+| GET    | `/users/:id`         | Public user profile              |
+| PATCH  | `/users/me`          | Update own profile               |
+| GET    | `/users/:id/matches` | Match history for a user         |
+| GET    | `/leaderboard`       | Top players by ELO               |
+| WS     | `/ws?token=<jwt>`    | Real-time game and lobby events  |
 
-OpenAPI docs available at `/api/v1/docs`.
+OpenAPI docs available at `/docs`.
 
 ---
 
@@ -351,12 +351,12 @@ python app.py          # runs on http://localhost:11432
 
 ## Planned Improvements
 
-| Feature                  | Technical Notes                                                              |
-|--------------------------|------------------------------------------------------------------------------|
-| AI in live game UI       | Wire ai-chess suggestions into the game board as highlighted move overlays   |
-| Spectator mode           | Read-only WebSocket subscription to an active game session                   |
-| Tournament bracket       | Matchmaking queue with bracket progression logic server-side                 |
-| Game replay viewer       | Step through stored PGN move-by-move on the profile or a dedicated replay page |
+| Feature            | Technical Notes                                                                |
+| ------------------ | ------------------------------------------------------------------------------ |
+| AI in live game UI | Wire ai-chess suggestions into the game board as highlighted move overlays     |
+| Spectator mode     | Read-only WebSocket subscription to an active game session                     |
+| Tournament bracket | Matchmaking queue with bracket progression logic server-side                   |
+| Game replay viewer | Step through stored PGN move-by-move on the profile or a dedicated replay page |
 
 ---
 
