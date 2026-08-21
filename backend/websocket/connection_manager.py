@@ -3,6 +3,7 @@ import json
 from typing import Any
 
 from fastapi import WebSocket
+from starlette.websockets import WebSocketDisconnect
 
 
 
@@ -14,11 +15,22 @@ class ConnectionManager:
 
     async def connect(self, user_id: str, websocket: WebSocket) -> None:
         await websocket.accept()
+        previous = self.active.get(user_id)
+        if previous is not None and previous is not websocket:
+            try:
+                await previous.close(code=4000)
+            except (WebSocketDisconnect, RuntimeError):
+                print("disconnected")
         self.active[user_id] = websocket
 
-    def disconnect(self, user_id: str) -> None:
+    def disconnect(self, user_id: str, websocket: WebSocket | None = None) -> bool:
+        """Remove a connection only if it is still the user's active socket."""
+        active_websocket = self.active.get(user_id)
+        if websocket is not None and active_websocket is not websocket:
+            return False
         self.active.pop(user_id, None)
         self.user_rooms.pop(user_id, None)
+        return True
 
     def set_user_room(self, user_id: str, room_id: str) -> None:
         self.user_rooms[user_id] = room_id
@@ -34,8 +46,12 @@ class ConnectionManager:
         if ws:
             try:
                 await ws.send_text(json.dumps({"type": event_type, "payload": payload}))
+            except WebSocketDisconnect:
+                self.disconnect(user_id, ws)
+                print(f"WebSocket disconnected for user {user_id}")
             except Exception as exc:
                 print(f"Failed to send to user {user_id}: {exc}")
+                self.disconnect(user_id, ws)
 
     async def broadcast_room(
         self, room_id: str, event_type: str, payload: dict[str, Any], exclude: str | None = None

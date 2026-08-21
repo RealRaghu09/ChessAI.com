@@ -60,17 +60,17 @@ async def handle_websocket(websocket: WebSocket) -> None:
         return
     print("STEP 5: CONNECTING")
     await manager.connect(user_id, websocket)
-    user_repo.set_online_status(user_id, True)
-    await manager.broadcast_all(E.USER_ONLINE, {"userId": user_id, "username": user.username})
-    await manager.send_to_user(
-        user_id,
-        E.AUTH_CONNECTED,
-        {"userId": user.id, "username": user.username, "elo": user.elo},
-    )
-    print("STEP 6: CONNECTED")
-    rate_window: list[float] = []
-
     try:
+        user_repo.set_online_status(user_id, True)
+        await manager.broadcast_all(E.USER_ONLINE, {"userId": user_id, "username": user.username})
+        await manager.send_to_user(
+            user_id,
+            E.AUTH_CONNECTED,
+            {"userId": user.id, "username": user.username, "elo": user.elo},
+        )
+        print("STEP 6: CONNECTED")
+        rate_window: list[float] = []
+
         while True:
             raw = await websocket.receive_text()
             now = time.time()
@@ -90,9 +90,9 @@ async def handle_websocket(websocket: WebSocket) -> None:
     except WebSocketDisconnect:
         print(f"There is an error with ws will notify : {WebSocketDisconnect} with user id {user_id}") 
     finally:
-        manager.disconnect(user_id)
-        user_repo.set_online_status(user_id, False)
-        await manager.broadcast_all(E.USER_OFFLINE, {"userId": user_id})
+        if manager.disconnect(user_id, websocket):
+            user_repo.set_online_status(user_id, False)
+            await manager.broadcast_all(E.USER_OFFLINE, {"userId": user_id})
 
 
 async def route_message(user_id: str, message: dict[str, Any]) -> None:
